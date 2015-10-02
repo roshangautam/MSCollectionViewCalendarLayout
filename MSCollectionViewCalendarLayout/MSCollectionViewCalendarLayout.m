@@ -855,6 +855,62 @@ NSUInteger const MSCollectionMinBackgroundZ = 0.0;
 }
 
 #pragma mark Scrolling
+- (void)scrollCollectionViewToClosetSectionToDate:(NSDate *)date animated:(BOOL)animated
+{
+    if (self.collectionView.numberOfSections != 0) {
+        NSInteger closestSectionToCurrentTime = [self closestSectionToDate:date];
+        CGPoint contentOffset;
+        
+        CGRect currentTimeHorizontalGridlineattributesFrame = [self.horizontalGridlineAttributes[[NSIndexPath indexPathForItem:0 inSection:closestSectionToCurrentTime]] frame];
+        if (self.sectionLayoutType == MSSectionLayoutTypeHorizontalTile) {
+            CGFloat yOffset;
+            if (!CGRectEqualToRect(currentTimeHorizontalGridlineattributesFrame, CGRectZero)) {
+                yOffset = nearbyintf(CGRectGetMinY(currentTimeHorizontalGridlineattributesFrame) - (CGRectGetHeight(self.collectionView.frame) / 2.0));
+            } else {
+                yOffset = 0.0;
+            }
+            CGFloat xOffset = self.contentMargin.left + ((self.sectionMargin.left + self.sectionWidth + self.sectionMargin.right) * closestSectionToCurrentTime);
+            contentOffset = CGPointMake(xOffset, yOffset);
+        } else {
+            CGFloat yOffset;
+            if (!CGRectEqualToRect(currentTimeHorizontalGridlineattributesFrame, CGRectZero)) {
+                yOffset = fmaxf(nearbyintf(CGRectGetMinY(currentTimeHorizontalGridlineattributesFrame) - (CGRectGetHeight(self.collectionView.frame) / 2.0)), [self stackedSectionHeightUpToSection:closestSectionToCurrentTime]);
+            } else {
+                yOffset = [self stackedSectionHeightUpToSection:closestSectionToCurrentTime];
+            }
+            contentOffset = CGPointMake(0.0, yOffset);
+        }
+        // Prevent the content offset from forcing the scroll view content off its bounds
+        if (contentOffset.y > (self.collectionView.contentSize.height - self.collectionView.frame.size.height)) {
+            contentOffset.y = (self.collectionView.contentSize.height - self.collectionView.frame.size.height);
+        }
+        if (contentOffset.y < 0.0) {
+            contentOffset.y = 0.0;
+        }
+        if (contentOffset.x > (self.collectionView.contentSize.width - self.collectionView.frame.size.width)) {
+            contentOffset.x = (self.collectionView.contentSize.width - self.collectionView.frame.size.width);
+        }
+        if (contentOffset.x < 0.0) {
+            contentOffset.x = 0.0;
+        }
+        [self.collectionView setContentOffset:contentOffset animated:animated];
+    }
+}
+
+- (NSInteger)closestSectionToDate:(NSDate *)date {
+    NSDate *currentDate = [date beginningOfDay];
+    NSTimeInterval minTimeInterval = CGFLOAT_MAX;
+    NSInteger closestSection = NSIntegerMax;
+    for (NSInteger section = 0; section < self.collectionView.numberOfSections; section++) {
+        NSDate *sectionDayDate = [self.delegate collectionView:self.collectionView layout:self dayForSection:section];
+        NSTimeInterval timeInterval = [currentDate timeIntervalSinceDate:sectionDayDate];
+        if ((timeInterval <= 0) && fabs(timeInterval) < minTimeInterval) {
+            minTimeInterval = fabs(timeInterval);
+            closestSection = section;
+        }
+    }
+    return ((closestSection != NSIntegerMax) ? closestSection : 0);
+}
 
 - (void)scrollCollectionViewToClosetSectionToCurrentTimeAnimated:(BOOL)animated
 {
